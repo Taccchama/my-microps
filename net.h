@@ -20,6 +20,7 @@
 
 #define NET_DEVICE_ADDR_LEN 16
 
+// NET_DEVICE_IS_UP：目的のフラグとフラグ集合との論理積
 #define NET_DEVICE_IS_UP(x) ((x)->flags & NET_DEVICE_FLAG_UP)
 #define NET_DEVICE_STATE(x) (NET_DEVICE_IS_UP(x) ? "UP" : "DOWN")
 
