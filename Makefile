@@ -1,6 +1,7 @@
 TAPDEV = tap0
 TAPADDR = 192.0.2.1/24
 
+CC := gcc
 CFLAGS += -g -W -Wall -Wno-unused-parameter
 INCFLAGS += -iquote .
 
