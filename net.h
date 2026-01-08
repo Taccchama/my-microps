@@ -35,11 +35,17 @@ struct net_device {
     uint16_t alen;
     uint8_t addr[NET_DEVICE_ADDR_LEN];
     uint8_t broadcast[NET_DEVICE_ADDR_LEN];
+    struct net_device_ops *ops; // ネットワークデバイス上での操作メソッドをまとめたインタフェース
+    void *priv; 
 };
 
+// ネットワークデバイス上での操作メソッドをまとめたインタフェース
 struct net_device_ops {
+    // ネットワークデバイスの起動
     int (*open)(struct net_device *dev);
+    // ネットワークデバイスの停止
     int (*close)(struct net_device *dev);
+    // ネットワークデバイスからの出力＝送信処理
     int (*output)(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst);
 };
 

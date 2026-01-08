@@ -48,6 +48,14 @@ static int net_device_open(struct net_device *dev) {
         return -1;
     }
 
+    // ネットワークデバイスを起動
+    if (dev->ops->open) {
+        if (dev->ops->open(dev) == -1) {
+            errorf("failure, dev=%s", dev->name);
+            return -1;
+        }
+    }
+
     // フラグを立てる
     // 目的のフラグとの論理和
     dev->flags |= NET_DEVICE_FLAG_UP;
@@ -63,6 +71,14 @@ static int net_device_close(struct net_device *dev) {
         return -1;
     }
 
+    // ネットワークデバイスを停止
+    if (dev->ops->close) {
+        if (dev->ops->close(dev) == -1) {
+            errorf("failure, dev=%s", dev->name);
+            return -1;
+        }
+    }
+
     // フラグを降ろす
     // 目的のフラグの否定との論理積
     dev->flags &= ~NET_DEVICE_FLAG_UP;
@@ -70,6 +86,7 @@ static int net_device_close(struct net_device *dev) {
     return 0;
 }
 
+// ネットワークデバイスからの出力処理：送信
 int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst) {
     debugf("dev=%s, type=0x%04x, len=%zu", dev->name, type, len);
     debugdump(data, len);
@@ -84,17 +101,26 @@ int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data
         return -1;
     }
 
+    // ネットワークデバイスからの出力メソッドが登録されているかチェック
+    if (!dev->ops->output) {
+        errorf("output callback function is not set, dev=%s", dev->name);
+        return -1;
+    }
+    // ネットワークデバイスから出力＝送信処理
+    if (dev->ops->output(dev, type, data, len, dst) == -1) {
+        errorf("failure, dev=%s, len=%zu", dev->name, len);
+        return -1;
+    }
+
     return 0;
 }
 
-int
-net_input(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev)
-{
-}
+// ネットワークデバイスへの入力処理：受信
+int net_input(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev) {
+    debugf("dev=%s, type=0x%04x, len=%zu", dev->name, type, len);
+    debugdump(data, len);
 
-int
-net_input(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev)
-{
+    return 0;
 }
 
 int net_init(void) {
