@@ -22,9 +22,7 @@ static timer_t timerid;
  */
 static struct timer *timers;
 
-int
-timer_register(struct timeval interval, void (*handler)(void))
-{
+int timer_register(struct timeval interval, void (*handler)(void)) {
     struct timer *timer;
 
     timer = memory_alloc(sizeof(*timer));
@@ -41,9 +39,7 @@ timer_register(struct timeval interval, void (*handler)(void))
     return 0;
 }
 
-static void
-timer_irq_handler(unsigned int irq, void *arg)
-{
+static void timer_irq_handler(unsigned int irq, void *arg) {
     struct timer *timer;
     struct timeval now, diff;
 
@@ -59,9 +55,7 @@ timer_irq_handler(unsigned int irq, void *arg)
     }
 }
 
-int
-timer_init(void)
-{
+int timer_init(void) {
     struct sigevent sev;
 
     sev.sigev_notify = SIGEV_SIGNAL;
@@ -74,9 +68,7 @@ timer_init(void)
     return intr_register(INTR_IRQ_TIMER, timer_irq_handler, 0, NULL);
 }
 
-int
-timer_run(void)
-{
+int timer_run(void) {
     const struct timespec ts = {0, 1000000}; /* 1ms */
     struct itimerspec interval = {ts, ts};
 
@@ -90,9 +82,7 @@ timer_run(void)
     return 0;
 }
 
-int
-timer_shutdown(void)
-{
+int timer_shutdown(void) {
     if (timer_delete(timerid) == -1) {
         errorf("timer_delete: %s", strerror(errno));
         return -1;

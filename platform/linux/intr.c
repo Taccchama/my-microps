@@ -25,9 +25,7 @@ static pthread_t tid;
 static pthread_barrier_t barrier;
 static sigset_t sigmask;
 
-int
-intr_register(unsigned int irq, intr_isr_t isr, int flags, void *arg)
-{
+int intr_register(unsigned int irq, intr_isr_t isr, int flags, void *arg) {
     struct irq_entry *entry;
 
     for (entry = irqs; entry; entry = entry->next) {
@@ -54,15 +52,11 @@ intr_register(unsigned int irq, intr_isr_t isr, int flags, void *arg)
     return 0;
 }
 
-int
-intr_raise(unsigned int irq)
-{
+int intr_raise(unsigned int irq) {
     return pthread_kill(tid, (int)irq);
 }
 
-static void *
-intr_main(void *arg)
-{
+static void *intr_main(void *arg) {
     int terminate = 0, sig, err;
     struct irq_entry *entry;
 
@@ -97,9 +91,7 @@ intr_main(void *arg)
     return NULL;
 }
 
-int
-intr_init(void)
-{
+int intr_init(void) {
     tid = pthread_self();
     pthread_barrier_init(&barrier, NULL, 2);
     sigemptyset(&sigmask);
@@ -107,9 +99,7 @@ intr_init(void)
     return 0;
 }
 
-int
-intr_run(void)
-{
+int intr_run(void) {
     int err;
 
     err = pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
@@ -126,9 +116,7 @@ intr_run(void)
     return 0;
 }
 
-int
-intr_shutdown(void)
-{
+int intr_shutdown(void) {
     if (pthread_equal(tid, pthread_self()) != 0) {
         /* Thread not created. */
         return -1;

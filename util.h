@@ -54,10 +54,8 @@
 #define debugdump(...)
 #endif
 
-extern int
-lprintf(FILE *fp, int level, const char *file, int line, const char *func, const char *fmt, ...);
-extern void
-hexdump(FILE *fp, const void *data, size_t size);
+extern int lprintf(FILE *fp, int level, const char *file, int line, const char *func, const char *fmt, ...);
+extern void hexdump(FILE *fp, const void *data, size_t size);
 
 /*
  * Queue
@@ -76,35 +74,25 @@ struct queue {
 
 typedef void (*queue_func_t)(void *arg, struct queue_entry *entry);
 
-extern void
-queue_init(struct queue *queue);
-extern struct queue_entry *
-queue_push(struct queue *queue, struct queue_entry *entry);
-extern struct queue_entry *
-queue_pop(struct queue *queue);
-extern struct queue_entry *
-queue_peek(struct queue *queue);
-extern void
-queue_foreach(struct queue *queue, queue_func_t func, void *arg);
+extern void queue_init(struct queue *queue);
+extern struct queue_entry *queue_push(struct queue *queue, struct queue_entry *entry);
+extern struct queue_entry *queue_pop(struct queue *queue);
+extern struct queue_entry *queue_peek(struct queue *queue);
+extern void queue_foreach(struct queue *queue, queue_func_t func, void *arg);
 
 /*
  * Byteorder
  */
 
-extern uint16_t
-hton16(uint16_t h);
-extern uint16_t
-ntoh16(uint16_t n);
-extern uint32_t
-hton32(uint32_t h);
-extern uint32_t
-ntoh32(uint32_t n);
+extern uint16_t hton16(uint16_t h);
+extern uint16_t ntoh16(uint16_t n);
+extern uint32_t hton32(uint32_t h);
+extern uint32_t ntoh32(uint32_t n);
 
 /*
  * Checksum
  */
 
-extern uint16_t
-cksum16(uint16_t *addr, uint16_t count, uint32_t init);
+extern uint16_t cksum16(uint16_t *addr, uint16_t count, uint32_t init);
 
 #endif
