@@ -63,18 +63,13 @@ extern int net_device_output(struct net_device *dev, uint16_t type, const uint8_
 extern int net_input(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev);
 typedef void (*net_protocol_handler_t)(const uint8_t *data, size_t len, struct net_device *dev);
 
-extern struct net_device *
-net_device_alloc(void);
-extern int
-net_device_register(struct net_device *dev);
-extern int
-net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst);
+extern struct net_device *net_device_alloc(void);
+extern int net_device_register(struct net_device *dev);
+extern int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst);
 
-extern int
-net_protocol_register(uint16_t type, net_protocol_handler_t handler);
+extern int net_protocol_register(uint16_t type, net_protocol_handler_t handler);
 
-extern int
-net_input(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev);
+extern int net_input(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev);
 
 extern int net_init(void);
 extern int net_run(void);
