@@ -41,9 +41,8 @@ ip_addr_pton(const char *p, ip_addr_t *n)
     return 0;
 }
 
-char *
-ip_addr_ntop(ip_addr_t n, char *p, size_t size)
-{
+// バイナリで渡されたIPアドレスを文字列に変換
+char *ip_addr_ntop(ip_addr_t n, char *p, size_t size){
     uint8_t *u8;
 
     u8 = (uint8_t *)&n;
@@ -51,14 +50,94 @@ ip_addr_ntop(ip_addr_t n, char *p, size_t size)
     return p;
 }
 
-static void
-ip_print(const uint8_t *data, size_t len)
-{
+// IPパケットの詳細を出力する
+static void ip_print(const uint8_t *data, size_t len) {
+    struct ip_hdr *hdr;
+    uint8_t v, hl, hlen;
+    uint16_t total, offset;
+    char addr[IP_ADDR_STR_LEN]; 
+
+    flockfile(stderr);
+
+    // 引数からパケットの情報を取得
+    hdr = (struct ip_hdr *)data;
+    v = hdr->vhl >> 4;
+    hl = hdr->vhl & 0x0f;
+    hlen = hl << 2;
+
+    fprintf(stderr, "       vhl: 0x%02x [v: %u, hl: %u (%u)]\n", hdr->vhl, v, hl, hlen);
+    fprintf(stderr, "       tos: 0x%02x\n", hdr->tos);
+
+    total = ntoh16(hdr->total);
+
+    fprintf(stderr, "     total: %u (payload: %u)\n", total, total - hlen);
+    fprintf(stderr, "        id: %u\n", ntoh16(hdr->id));
+    
+    offset = ntoh16(hdr->offset);
+
+    fprintf(stderr, "    offset: 0x%04x [flags=%x, offset=%u]\n", offset, offset >> 13, offset & IP_HDR_OFFSET_MASK);
+    fprintf(stderr, "       ttl: %u\n", hdr->ttl);
+    fprintf(stderr, "  protocol: %u\n", hdr->protocol);
+    fprintf(stderr, "       sum: 0x%04x\n", ntoh16(hdr->sum));
+    fprintf(stderr, "       src: %s\n", ip_addr_ntop(hdr->src, addr, sizeof(addr)));
+    fprintf(stderr, "       dst: %s\n", ip_addr_ntop(hdr->dst, addr, sizeof(addr)));
+
+#ifdef HEXDUMP
+    hexdump(stderr, data, len);
+#endif
+
+    funlockfile(stderr);
 }
 
 static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
+    struct ip_hdr *hdr;
+    uint8_t v;
+    uint16_t hlen, total, offset;
+    
     debugf("dev=%s, len=%zu", dev->name, len);
-    debugdump(data, len);
+    
+    // 引数で渡されたヘッダの長さを確認
+    if (len < IP_HDR_SIZE_MIN) {
+        errorf("too short");
+        return;
+    }
+
+    // hdr情報を引数より取得
+    hdr = (struct ip_hdr *)data;
+
+    // ipv4であるか確認
+    v = hdr->vhl >> 4;
+    if (v != IP_VERSION_IPV4) {
+        errorf("ip version error");
+        return;
+    } 
+
+    hlen = (hdr->vhl & 0x0f) << 2;
+    if (len < hlen) {
+        errorf("header length error: len=%zu < hlen=%u", len, hlen);
+        return;
+    }
+
+    if (cksum16((uint16_t *)hdr, hlen, 0) != 0) {
+        errorf("checksum error");
+        return;
+    }
+
+    total = ntoh16(hdr->total);
+    if (len < total) {
+        errorf("header length error: len=%zu < total=%u", len, total);
+        return;
+    }
+
+    offset = ntoh16(hdr->offset);
+    // フラグとフラグメントオフセットの値を確認し、パケットが分割されていないことを確認（パケット分割はサポートしないため）
+    if (offset & IP_HDR_FLAG_MF || offset & IP_HDR_OFFSET_MASK) {
+        errorf("fragments does not support", len, total);
+        return;
+    }
+
+    // 全てのチェックを通過したIPパケットの詳細を画面出力
+    ip_print(data, total);
 }
 
 int ip_init(void) {
