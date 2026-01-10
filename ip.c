@@ -24,9 +24,7 @@ const ip_addr_t IP_ADDR_BROADCAST = 0xffffffff; /* 255.255.255.255 */
  */
 static struct ip_iface *ifaces;
 
-int
-ip_addr_pton(const char *p, ip_addr_t *n)
-{
+int ip_addr_pton(const char *p, ip_addr_t *n) {
     char *sp, *ep;
     int idx;
     long ret;
@@ -50,7 +48,7 @@ ip_addr_pton(const char *p, ip_addr_t *n)
 }
 
 // バイナリで渡されたIPアドレスを文字列に変換
-char *ip_addr_ntop(ip_addr_t n, char *p, size_t size){
+char *ip_addr_ntop(ip_addr_t n, char *p, size_t size) {
     uint8_t *u8;
 
     u8 = (uint8_t *)&n;
@@ -58,29 +56,73 @@ char *ip_addr_ntop(ip_addr_t n, char *p, size_t size){
     return p;
 }
 
-// IPパケットの詳細を出力する
-static void ip_print(const uint8_t *data, size_t len) {
-struct ip_iface *
-ip_iface_alloc(const char *unicast, const char *netmask)
-{
+struct ip_iface *ip_iface_alloc(const char *unicast, const char *netmask) {
+    struct ip_iface *iface;
+
+    iface = memory_alloc(sizeof(*iface));
+    if (!iface) {
+        errorf("memory_alloc() failure");
+        return NULL;
+    }
+
+    NET_IFACE(iface)->family = NET_IFACE_FAMILY_IP;
+
+    // ユニキャストIPアドレスとサブネットマスクの設定
+    if (ip_addr_pton(unicast, &iface->unicast) == -1) {
+        errorf("ip_addr_pton() failure, addr=%s", unicast);
+        memory_free(iface);
+        return NULL;
+    }
+
+    // ブロードキャストIPアドレスの設定
+    if (ip_addr_pton(netmask, &iface->netmask) == -1) {
+        errorf("ip_addr_pton() failure, addr=%s", netmask);
+        memory_free(iface);
+        return NULL;
+    }
+    // iface->unicastとiface->netmaskの論理積 = ネットワークアドレス
+    // iface->netmaskの反転 = ワイルドカードマスク（ホスト部のビットが全て1）
+    // ネットワークアドレスとワイルドカードマスクの論理和 = ブロードキャストIP
+    iface->broadcast = (iface->unicast & iface->netmask) | ~iface->netmask;
+    return iface;
+
 }
 
 /*
  * NOTE: must not be call after net_run()
  */
-int
-ip_iface_register(struct net_device *dev, struct ip_iface *iface)
-{
+int ip_iface_register(struct net_device *dev, struct ip_iface *iface) {
+    char addr1[IP_ADDR_STR_LEN];
+    char addr2[IP_ADDR_STR_LEN];
+    char addr3[IP_ADDR_STR_LEN];
+
+    infof("dev=%s, %s, %s, %s", dev->name, ip_addr_ntop(iface->unicast, addr1, sizeof(addr1)), ip_addr_ntop(iface->netmask, addr2, sizeof(addr2)), ip_addr_ntop(iface->broadcast, addr3, sizeof(addr3)));
+
+    if (net_device_add_iface(dev, NET_IFACE(iface)) == -1) {
+        errorf("net_device_add_iface() failure");
+        return -1;
+    }
+
+    iface->next = ifaces;
+    ifaces = iface;
+
+    return 0;
 }
 
-struct ip_iface *
-ip_iface_select(ip_addr_t addr)
-{
+// 条件に当てはまるインタフェースの検索
+struct ip_iface *ip_iface_select(ip_addr_t addr) {
+    struct ip_iface *entry;
+    
+    for (entry = ifaces; entry; entry = entry->next) {
+        if (entry->unicast == addr) {
+            break;
+        }
+    }
+    return entry;
 }
 
-static void
-ip_print(const uint8_t *data, size_t len)
-{
+// IPパケットの詳細を出力する
+static void ip_print(const uint8_t *data, size_t len) {
     struct ip_hdr *hdr;
     uint8_t v, hl, hlen;
     uint16_t total, offset;
@@ -122,6 +164,8 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
     struct ip_hdr *hdr;
     uint8_t v;
     uint16_t hlen, total, offset;
+    struct ip_iface *iface;
+    char addr[IP_ADDR_STR_LEN];
     
     debugf("dev=%s, len=%zu", dev->name, len);
     
@@ -164,6 +208,17 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
         errorf("fragments does not support", len, total);
         return;
     }
+
+    iface = (struct ip_iface *)net_device_get_iface(dev, NET_IFACE_FAMILY_IP);
+    if (!iface) {
+        return;
+    }
+    if (hdr->dst != iface->unicast) {
+        if (hdr->dst != iface->broadcast && hdr->dst != IP_ADDR_BROADCAST) {
+            return;
+        }
+    }
+    debugf("permit, dev=%s, iface=%s", dev->name, ip_addr_ntop(iface->unicast, addr, sizeof(addr)));
 
     // 全てのチェックを通過したIPパケットの詳細を画面出力
     ip_print(data, total);

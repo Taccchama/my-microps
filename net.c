@@ -124,26 +124,42 @@ int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data
     return 0;
 }
 
+// ネットワークデバイスへインタフェースを紐付け
+int net_device_add_iface(struct net_device *dev, struct net_iface *iface) {
+    struct net_iface *entry;
+
+    for (entry = dev->ifaces; entry; entry = entry->next) {
+        if (entry->family == iface->family) {
+            errorf("already exists, dev=%s, family=%d", dev->name, entry->family);
+            return -1;
+        }
+    }
+
+    iface->next = dev->ifaces;
+    iface->dev = dev;
+    dev->ifaces = iface;
+
+    infof("success, dev=%s", dev->name);
+    return 0;
+
+}
+
+// ネットワークデバイスに紐づけられたインタフェースの取得
+struct net_iface *net_device_get_iface(struct net_device *dev, int family) {
+    struct net_iface *entry;
+
+    for (entry = dev->ifaces; entry; entry = entry->next) {
+        if (entry->family == family) {
+            break;
+        }
+    }
+    return entry;
+}
+
 /*
  * NOTE: must not be call after net_run()
  */
 int net_protocol_register(uint16_t type, net_protocol_handler_t handler) {
-int
-net_device_add_iface(struct net_device *dev, struct net_iface *iface)
-{
-}
-
-struct net_iface *
-net_device_get_iface(struct net_device *dev, int family)
-{
-}
-
-/*
- * NOTE: must not be call after net_run()
- */
-int
-net_protocol_register(uint16_t type, net_protocol_handler_t handler)
-{
     struct net_protocol *proto;
     for (proto = protocols; proto; proto = proto->next) {
         if (type == proto->type) {
