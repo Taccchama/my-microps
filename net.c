@@ -116,6 +116,7 @@ int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data
         return -1;
     }
     // ネットワークデバイスから出力＝送信処理
+    // net_device_ops->outputの中身は送信方法の初期化関数（loopbackならloopback_init関数など）で設定
     if (dev->ops->output(dev, type, data, len, dst) == -1) {
         errorf("failure, dev=%s, len=%zu", dev->name, len);
         return -1;

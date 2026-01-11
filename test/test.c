@@ -12,7 +12,7 @@
 #include "test.h"
 
 static volatile sig_atomic_t terminate;
-static struct net_device *dev;
+
 
 static void on_signal(int signum) {
     (void)signum;
@@ -22,6 +22,7 @@ static void on_signal(int signum) {
 // シグナルハンドラのセットアップ
 static int setup(void) {
     struct sigaction sa = {0};
+    struct net_device *dev; // app_main関数内でnet_device_outputを直呼びしなくてよければ本関数のみなのでグローバル変数からローカル変数に
     struct ip_iface *iface;
 
     sa.sa_handler = on_signal;
@@ -69,11 +70,18 @@ static int cleanup(void) {
 }
 
 static int app_main(void) {
+    ip_addr_t src, dst;
+    size_t offset = IP_HDR_SIZE_MIN;
+
+    ip_addr_pton(LOOPBACK_IP_ADDR, &src);
+
+    dst = src;
+
     debugf("press Ctrl+C to terminate");
     // on_signalで立てたフラグよりシグナルハンドラで処理
     while (!terminate) {
-        if (net_device_output(dev, NET_PROTOCOL_TYPE_IP, test_data, sizeof(test_data), NULL) == -1) {
-            errorf("net_device_output() failure");
+        if (ip_output(1, test_data + offset, sizeof(test_data) - offset, src, dst) == -1) {
+            errorf("ip_output() failure");
             break;
         }
 
