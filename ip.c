@@ -133,17 +133,30 @@ struct ip_iface *ip_iface_select(ip_addr_t addr) {
 /*
  * NOTE: must not be call after net_run()
  */
-int
-ip_protocol_register(uint8_t protocol, ip_protocol_handler_t handler)
-{
-}
+int ip_protocol_register(uint8_t protocol, ip_protocol_handler_t handler) {
+    struct ip_protocol *entry;
 
-/*
- * NOTE: must not be call after net_run()
- */
-int
-ip_protocol_register(uint8_t protocol, ip_protocol_handler_t handler)
-{
+    for (entry = protocols; entry; entry = entry->next) {
+        if (entry->protocol == protocol) {
+            errorf("already exists, protocol=%u", protocol);
+            return -1;
+        }
+    }
+
+    entry = memory_alloc(sizeof(*entry));
+    if (!entry) {
+        errorf("memory_alloc() failure");
+        return -1;
+    }
+
+    entry->protocol = protocol;
+    entry->handler = handler;
+    entry->next = protocols;
+
+    protocols = entry;
+
+    infof("success, protocol=%u", protocol);
+    return 0;
 }
 
 // IPパケットの詳細を出力する
@@ -191,6 +204,7 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
     uint16_t hlen, total, offset;
     struct ip_iface *iface;
     char addr[IP_ADDR_STR_LEN];
+    struct ip_protocol *proto;
     
     debugf("dev=%s, len=%zu", dev->name, len);
     
@@ -247,6 +261,14 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
 
     // 全てのチェックを通過したIPパケットの詳細を画面出力
     ip_print(data, total);
+
+    // IPヘッダのprotocolフィールドに一致するプロトコルを探索し、該当プロトコルのハンドラを実行
+    for (proto = protocols; proto; proto = proto->next) {
+        if (proto->protocol == hdr->protocol) {
+            proto->handler(hdr, data + hlen, total - hlen, iface);
+            return;
+        }
+    }
 }
 
 static int ip_output_device(struct ip_iface *iface, const uint8_t *data, size_t len, ip_addr_t target) {
