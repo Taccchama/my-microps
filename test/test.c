@@ -8,6 +8,7 @@
 #include "net.h"
 #include "driver/loopback.h"
 #include "ip.h"
+#include "icmp.h"
 
 #include "test.h"
 
@@ -71,17 +72,22 @@ static int cleanup(void) {
 
 static int app_main(void) {
     ip_addr_t src, dst;
-    size_t offset = IP_HDR_SIZE_MIN;
+    uint16_t id, seq = 0;
+    uint32_t val;
+    uint8_t data[] = {'T', 'E', 'S', 'T'};
 
     ip_addr_pton(LOOPBACK_IP_ADDR, &src);
 
     dst = src;
 
+    id = getpid() % UINT16_MAX;
+
     debugf("press Ctrl+C to terminate");
     // on_signalで立てたフラグよりシグナルハンドラで処理
     while (!terminate) {
-        if (ip_output(IP_PROTOCOL_ICMP, test_data + offset, sizeof(test_data) - offset, src, dst) == -1) {
-            errorf("ip_output() failure");
+        val = hton32(id << 16 | ++seq);
+        if (icmp_output(ICMP_TYPE_ECHO, 0, val, data, sizeof(data), src, dst) == -1) {
+            errorf("icmp_output() failure");
             break;
         }
 
